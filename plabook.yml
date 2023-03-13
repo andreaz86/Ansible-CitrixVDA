@@ -12,11 +12,6 @@
     #     name: CitrixTelemetryService
     #   register: citrix_telemetry
 
-    # - name: Check Citrix setup file exists
-    #   ansible.windows.win_stat:
-    #     path: C:\Program Files\Citrix\XenDesktopVdaSetup\XenDesktopVdaSetup.exe
-    #   register: vda_service
-
     # - name: Disable Citrix telemetry service
     #   ansible.windows.win_service:
     #     name: CitrixTelemetryService
@@ -30,11 +25,16 @@
     #   when: disable_telemetry is changed
     #   ignore_errors: true
 
-    - name: Sleep for 60 to be sure all services are running
-      ansible.builtin.wait_for:
-        timeout: 60
-      delegate_to: localhost
-      when: disable_telemetry is changed
+    # - name: Sleep for 60 to be sure all services are running
+    #   ansible.builtin.wait_for:
+    #     timeout: 60
+    #   delegate_to: localhost
+    #   when: disable_telemetry is changed
+
+    - name: Check Citrix setup file exists
+      ansible.windows.win_stat:
+        path: C:\Program Files\Citrix\XenDesktopVdaSetup\XenDesktopVdaSetup.exe
+      register: vda_service
 
     - name: Create temp directory
       ansible.windows.win_file:
