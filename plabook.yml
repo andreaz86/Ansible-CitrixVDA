@@ -1,0 +1,114 @@
+- name: Citrix Post Config
+  hosts: vda
+  tasks:
+    - name: Print ansible_facts.distribution_major_version
+      ansible.builtin.debug:
+        var: ansible_facts.distribution_major_version
+
+# Uncomment if you receive errors uninstalling Citrix Telemetry
+
+    # - name: Check Citrix telemetry service
+    #   ansible.windows.win_service:
+    #     name: CitrixTelemetryService
+    #   register: citrix_telemetry
+
+    # - name: Check Citrix setup file exists
+    #   ansible.windows.win_stat:
+    #     path: C:\Program Files\Citrix\XenDesktopVdaSetup\XenDesktopVdaSetup.exe
+    #   register: vda_service
+
+    # - name: Disable Citrix telemetry service
+    #   ansible.windows.win_service:
+    #     name: CitrixTelemetryService
+    #     start_mode: disabled
+    #   when: citrix_telemetry.start_mode != "disabled"
+    #   ignore_errors: true
+    #   register: disable_telemetry
+
+    # - name: Reboot the machine
+    #   ansible.windows.win_reboot:
+    #   when: disable_telemetry is changed
+    #   ignore_errors: true
+
+    - name: Sleep for 60 to be sure all services are running
+      ansible.builtin.wait_for:
+        timeout: 60
+      delegate_to: localhost
+      when: disable_telemetry is changed
+
+    - name: Create temp directory
+      ansible.windows.win_file:
+        path: "{{ item }}"
+        state: directory
+      with_items:
+        - c:\temp
+        - c:\temp\logs
+        - c:\temp\logs\citrixuninstall
+        - c:\temp\logs\ctxinstall
+
+    - name: Uninstall VDA 1
+      ansible.windows.win_package:
+        path: C:\Program Files\Citrix\XenDesktopVdaSetup\XenDesktopVdaSetup.exe
+        arguments: /removeall /passive /noreboot /logpath c:\temp\logs\citrixuninstall
+        expected_return_code: [0, 3, 8]
+      register: vda_uninstall
+      when: vda_service.stat.exists
+
+    - name: Reboot the machine
+      ansible.windows.win_reboot:
+      when: (vda_uninstall is changed) or (wem_uninstall is changed)
+
+    - name: Copy VDA 1912
+      ansible.windows.win_copy:
+        src: ./VDAWorkstationSetup_1912.exe
+        dest: C:\Temp\VDASetup.exe
+      when: ansible_facts.distribution_major_version == "6"
+
+    - name: Copy VDA 2203
+      ansible.windows.win_copy:
+        src: ./VDAWorkstationSetup_2203_2000.exe
+        dest: C:\Temp\VDASetup.exe
+      when: (ansible_facts.distribution_major_version == "10") or (ansible_facts.distribution_major_version == "11")
+
+    - name: Register version variable
+      ansible.builtin.set_fact:
+        arguments : "{{ arguments_2203 }}"
+      when: (ansible_facts.distribution_major_version == "10") or (ansible_facts.distribution_major_version == "11")
+
+    - name: Register version variable
+      ansible.builtin.set_fact:
+        arguments : "{{ arguments_1912 }}"
+      when: ansible_facts.distribution_major_version == "6"
+
+    - name: Install VDA part 1
+      ansible.windows.win_package:
+        path: C:\Temp\VDASetup.exe
+        state: present
+        arguments: "{{ arguments }}"
+        expected_return_code: [0, 3, 8]
+      register: installvda
+      become: true
+
+    - name: Reboot server if requred
+      ansible.windows.win_reboot:
+      when: (installvda.rc == 0) or (installvda.rc == 3) or (installvda.rc == 8)
+
+    - name: Install VDA part 2
+      ansible.windows.win_package:
+        path: C:\Temp\VDASetup.exe
+        state: present
+        arguments: "{{ arguments }}"
+        expected_return_code: [0, 3, 8]
+      register: installvda
+      become: true
+      when: installvda.rc == 3
+
+    - name: Add ListofDDCs registry key
+      win_regedit:
+        path: HKLM:\Software\Citrix\VirtualDesktopAgent
+        name: ListOfDDCs
+        data: "{{ cc_names }}"
+        type: string
+
+    - name: Reboot the machine
+      ansible.windows.win_reboot:
