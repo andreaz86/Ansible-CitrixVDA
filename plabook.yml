@@ -56,7 +56,7 @@
 
     - name: Reboot the machine
       ansible.windows.win_reboot:
-      when: (vda_uninstall is changed) or (wem_uninstall is changed)
+      when: vda_uninstall is changed
 
     - name: Copy VDA 1912
       ansible.windows.win_copy:
