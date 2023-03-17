@@ -13,6 +13,7 @@ The Playbook use WinRM, be sure you configured the right GPOs in order to use th
 - Personalize inventory.ini
     - List of VDA Machines under [vda] label.
     - Personalize arguments list if required (VDA 1912 and 2203 has different argument sets).
+    - Change CloudConnector/Delivery Controllers FQDN in the cc_names variable.
 - Download VDA and place on the same folder where the plabook resides.
     - Take care of file names, needs to be alligned with plabook tasks called "Copy VDA #"
 - run ansible-playbook -i inventory.ini playbook.yml
