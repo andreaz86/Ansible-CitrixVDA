@@ -6,7 +6,8 @@ The playbook supports different version of VDA based on the operating systems, f
 
 # Requirements
 To use the playbook you need a Ansible machine with TCP 5985 opened on VDA machines. 
-The Playbook use WinRM, be sure you configured the right GPOs in order to use this protocol. Make sure you also have installed pywinrm from pip on the ansible machine.
+The Playbook use WinRM, be sure you configured the right GPOs in order to use this protocol. 
+Make sure you also have installed pywinrm from pip on the ansible machine (pip3 install pywinrm).
 
 
 # Usage
