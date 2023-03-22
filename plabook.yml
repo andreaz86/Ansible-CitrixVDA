@@ -103,6 +103,7 @@
       become: true
       when: installvda.rc == 3
 
+# Remove this task if you plan to use another method
     - name: Add ListofDDCs registry key
       win_regedit:
         path: HKLM:\Software\Citrix\VirtualDesktopAgent
