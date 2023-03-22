@@ -68,12 +68,12 @@
       ansible.windows.win_copy:
         src: ./VDAWorkstationSetup_2203_2000.exe
         dest: C:\Temp\VDASetup.exe
-      when: (ansible_facts.distribution_major_version == "10") or (ansible_facts.distribution_major_version == "11")
+      when: ansible_facts.distribution_major_version == "10"
 
     - name: Register version variable
       ansible.builtin.set_fact:
         arguments : "{{ arguments_2203 }}"
-      when: (ansible_facts.distribution_major_version == "10") or (ansible_facts.distribution_major_version == "11")
+      when: ansible_facts.distribution_major_version == "10"
 
     - name: Register version variable
       ansible.builtin.set_fact:
