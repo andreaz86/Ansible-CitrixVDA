@@ -21,4 +21,4 @@ just replace the default value on varibles in the inventory.ini:
 - **domain_joined:** specify if you want VM to be used for Non Domain Join
 
 ## Requirements
-Read the main project page for ansible requirements
+Read the [main project page](https://github.com/andreaz86/Ansible-CitrixVDA/) for ansible requirements
