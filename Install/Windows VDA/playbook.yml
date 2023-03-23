@@ -1,0 +1,95 @@
+- name: Citrix Post Config
+  hosts: vda
+  tasks:
+    - name: Create temp directory
+      ansible.windows.win_file:
+        path: "{{ item }}"
+        state: directory
+      with_items:
+        - c:\temp
+        - c:\temp\logs
+        - c:\temp\logs\ctxinstall
+        - c:\temp\requirements
+
+    - name: Download VDA
+      ansible.windows.win_get_url:
+        url: "{{ vda_url }}"
+        dest: c:\temp\requirements\
+      register: download_vda
+
+# Use builting copy module if you need to push vda from control node instead of downloading from a web server
+    # - name: Copy VDA 2203
+    #   ansible.windows.win_copy:
+    #     src: ./VDAWorkstationSetup_2203_2000.exe
+    #     dest: c:\temp\requirements\VDASetup.exe
+    #   register: download_vda
+
+    - name: Download Optimizer Tool
+      ansible.windows.win_get_url:
+        url: "{{ optimizer_url }}"
+        dest: c:\temp\requirements\CitrixOptimizerTool.zip
+
+    # - name: Download Optimizer Tool
+    #   ansible.windows.win_copy:
+    #     src: ./CitrixOptimizerTool.zip
+    #     dest: c:\temp\requirements\CitrixOptimizerTool.zip
+
+
+    - name: Install VDA part 1
+      ansible.windows.win_package:
+        path: "{{ download_vda.dest }}"
+        state: present
+        arguments: "{{ vda_arguments }}"
+        expected_return_code: [0, 3, 8]
+      register: installvda
+      tags: vda
+      become: true
+
+    - name: Reboot server if requred
+      ansible.windows.win_reboot:
+      when: (installvda.rc == 0) or (installvda.rc == 3) or (installvda.rc == 8)
+
+    - name: Install VDA part 2
+      ansible.windows.win_package:
+        path: "{{ download_vda.dest }}"
+        state: present
+        arguments: "{{ vda_arguments }}"
+        expected_return_code: [0, 3, 8]
+      register: installvda
+      tags: vda
+      become: true
+      when: installvda.rc == 3
+
+    - name: Check if Optimizer already run
+      ansible.windows.win_reg_stat:
+        path: HKLM:\SOFTWARE\Citrix\Optimizer\OS Optimizations
+      register: optimizer_reg
+
+    - name: Decompress Optimizer Zip File
+      community.windows.win_unzip:
+        src: c:\temp\requirements\CitrixOptimizerTool.zip
+        dest: c:\temp\requirements\CitrixOptimizerTool
+      when: optimizer_reg.exists == false
+
+    - name: Launch Citrix Optimizer
+      ansible.windows.win_command: 'powershell.exe -ExecutionPolicy ByPass -File c:\temp\requirements\CitrixOptimizerTool\CtxOptimizerEngine.ps1 -Mode Execute'
+      when: optimizer_reg.exists == false
+
+    - name: Set rendezvousv2
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Citrix\VirtualDesktopAgent
+        name: GctRegistration
+        data: 1
+        type: dword
+      when: rendezvousv2 == "true"
+
+    - name: Set rendezvousv2 proxy
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Citrix\VirtualDesktopAgent
+        name: ProxySettings
+        data: "{{ rendezvousv2_proxy }}"
+        type: string
+      when: rendezvousv2_proxy != "false"
+
+    - name: Shutdown the VM
+      ansible.windows.win_command: powershell.exe Stop-Computer -Force

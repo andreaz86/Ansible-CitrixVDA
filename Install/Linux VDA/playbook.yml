@@ -1,0 +1,136 @@
+- name: Citrix Post Config
+  hosts: vda
+  tasks:
+    - name: Install required system packages
+      ansible.builtin.apt:
+        pkg:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - gnupg2
+          - dotnet-runtime-6.0
+        update_cache: true
+      become: true
+
+    - name: Create requirements directory
+      ansible.builtin.file:
+        path: /var/requirements
+        state: directory
+        mode: '0755'
+      become: true
+
+    # Download Requirements
+
+    - name: Download VDA
+      ansible.builtin.get_url:
+        url: "{{ linuxvda_url }}"
+        dest: /var/requirements/VDA.deb
+        mode: "0750"
+      register: vda_download
+      become: true
+
+# Use builting copy module if you need to push vda from control node instead of downloading from a web server
+    # - name: Dowload VDA
+    #   ansible.builtin.copy:
+    #     src: ./vda.deb
+    #     dest: /var/requirements/VDA.deb
+    #     mode: "0750"
+    #   register: vda_download
+    #   become: true
+
+    - name: Install VDA
+      ansible.builtin.apt:
+        deb: "{{ vda_download.dest }}"
+      become: true
+
+    - name: Copy apparmor config
+      ansible.builtin.template:
+        src: './app_armor.j2'
+        dest: "/etc/apparmor.d/tunables/home.d/ubuntu"
+        mode: "0711"
+      become: true
+      register: apparmor_config_file
+
+
+    - name: Copy template file for ctxinstall
+      ansible.builtin.template:
+        src: './ctxinstall.j2'
+        dest: "/opt/Citrix/VDA/ctxinstall.sh"
+        mode: "0750"
+      become: true
+      register: ctxinstall_config_file
+
+    - name: Copy template file for mcs
+      ansible.builtin.template:
+        src: './mcs_config.j2'
+        dest: "/etc/xdl/mcs/mcs.conf"
+        mode: "0750"
+      become: true
+      register: mcs_config_file
+
+    - name: Check if MCS already run
+      ansible.builtin.stat:
+        path: /etc/mcs_ok
+      register: check_mcs
+
+    - name: Check if MCS already run
+      ansible.builtin.stat:
+        path: /etc/vda_ok
+      register: check_vda
+
+    - name: Debug
+      ansible.builtin.debug:
+        var: check_mcs
+
+
+    - name: Configure VDA
+      ansible.builtin.shell: /opt/Citrix/VDA/ctxinstall.sh
+      args:
+        chdir: /opt/Citrix/VDA
+        executable: /bin/bash
+      become: true
+      register: vda_configure
+      changed_when: vda_configure.rc != 0
+
+    - name: Configure MCS
+      ansible.builtin.shell: /opt/Citrix/VDA/sbin/deploymcs.sh
+      args:
+        executable: /bin/bash
+      become: true
+      register: mcs_configure
+      changed_when: mcs_configure.rc != 0
+
+
+    - name: Delete VDA configuration file
+      ansible.builtin.file:
+        path: /opt/Citrix/VDA/ctxinstall.sh
+        state: absent
+      become: true
+
+    - name: Configure Rendezvous V2 GctRegistration
+      ansible.builtin.command: /opt/Citrix/VDA/bin/ctxreg create -k "HKLM\Software\Citrix\VirtualDesktopAgent" -t "REG_DWORD" -v "GctRegistration" -d "0x00000001" --force
+      become: true
+      when: rendezvousv2 == "true"
+      register: rendezvousv2_gctregistration
+      changed_when: rendezvousv2_gctregistration.rc != 0
+
+    - name: Configure Rendezvous V2 KeyRegistration
+      ansible.builtin.command: /opt/Citrix/VDA/bin/ctxreg create -k "HKLM\Software\Citrix\VirtualDesktopAgent" -t "REG_DWORD" -v "KeyRegistration" -d "0x00000001" --force
+      become: true
+      when: rendezvousv2 == "true"
+      register: rendezvousv2_proxy_keyregistration
+      changed_when: rendezvousv2_proxy_keyregistration.rc != 0
+
+    - name: Configure Rendezvous V2 Proxy
+      ansible.builtin.command: /opt/Citrix/VDA/bin/ctxreg create -k "HKLM\Software\Citrix\VirtualDesktopAgent" -t "REG_SZ" -v "ProxySettings" -d {{ rendezvousv2_proxy }} --force
+      args:
+        executable: /bin/bash
+      become: true
+      when: rendezvousv2_proxy != "false"
+      register: rendezvousv2_proxy
+      changed_when: rendezvousv2_proxy.rc != 0
+
+    - name: Shutdown
+      community.general.shutdown:
+      become: true

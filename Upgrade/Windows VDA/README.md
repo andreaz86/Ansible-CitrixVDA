@@ -1,4 +1,4 @@
-# Ansible-UpgradeCitrixVDA
+# Upgrade
 
 This Ansible playbook can be used to upgrade Citrix VDA on persistent Windows Virtual Machine (Golden Image too).
 The playbook supports different version of VDA based on the operating systems, for example if the target is Windows Server 2012R2 then it suppose to use VDA 1912 instead of 2203 (based on the OS Major Version variable).
