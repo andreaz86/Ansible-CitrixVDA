@@ -1,6 +1,6 @@
 # Ansible-CitrixVDA
 Series of Ansible playbook to be used for:
-- Installing Citrix VDA on Windows [(link)]()
+|Installing Citrix VDA on Windows| [link](https://github.com/andreaz86/Ansible-CitrixVDA/tree/main/Install%20VDA/Windows%20VDA)|
 - installing Citrix VDA on Linux (Ubuntu) [link](https://github.com/andreaz86/Ansible-CitrixVDA/tree/main/Install/Linux%20VDA)
 - Upgrading VDA Agent on Windows persistent VM (or master image too)
 
